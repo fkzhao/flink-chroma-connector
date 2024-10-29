@@ -1,7 +1,5 @@
 package org.apache.flink.example;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.chroma.conf.ChromaOptions;
 import org.apache.flink.chroma.sink.ChromaSink;
 import org.apache.flink.chroma.sink.writer.serializer.SimpleStringSerializer;
@@ -17,6 +15,7 @@ public class FlinkApp {
         try {
             Configuration conf = new Configuration();
             conf.setString(RestOptions.BIND_PORT, "8081");
+//            conf.setString("execution.savepoint.path", "file:///Users/fakzhao/Desktop/flink/f055bee9cf1a893301ce3f660eb75509/chk-3");
             StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
 
             env.enableCheckpointing(30 * 1000);
@@ -24,12 +23,20 @@ public class FlinkApp {
             env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
             env.getCheckpointConfig().setTolerableCheckpointFailureNumber(3);
             env.getCheckpointConfig().enableUnalignedCheckpoints();
-
             env.setStateBackend(new EmbeddedRocksDBStateBackend());
+            env.getCheckpointConfig().setCheckpointStorage("file:///Users/fakzhao/Desktop/flink");
             env.getConfig().setUseSnapshotCompression(true);
             DataStream<String> sourceDataStream = env.socketTextStream("localhost", 8888);
+            ChromaOptions chromaOptions = ChromaOptions.builder()
+                    .setHost("127.0.0.1")
+                    .setPort(8000)
+                    .setTenant("flink")
+                    .setDatabase("demo")
+                    .setCollection("text_collection")
+                    .setAutoCreateCollection(true)
+                    .build();
             ChromaSink<String> chromaSink = ChromaSink.<String>builder()
-                    .setChromaOptions(new ChromaOptions())
+                    .setChromaOptions(chromaOptions)
                     .setSerializer(new SimpleStringSerializer())
                     .build();
             sourceDataStream.print();

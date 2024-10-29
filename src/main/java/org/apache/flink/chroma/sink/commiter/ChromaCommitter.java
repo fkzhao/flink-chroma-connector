@@ -9,7 +9,7 @@ import java.util.Collection;
 public class ChromaCommitter implements Committer<ChromaCommittable>, Closeable {
     @Override
     public void commit(Collection<CommitRequest<ChromaCommittable>> committable) throws IOException, InterruptedException {
-        System.out.println(" ChromaCommitter commit");
+
     }
 
     @Override

@@ -10,7 +10,7 @@ import org.apache.http.impl.client.HttpClients;
 import java.util.concurrent.TimeUnit;
 
 public class HttpUtil {
-    private RequestConfig requestConfigStream =
+    private final RequestConfig requestConfigStream =
             RequestConfig.custom()
                     .setConnectTimeout(60 * 1000)
                     .setConnectionRequestTimeout(60 * 1000)
@@ -29,12 +29,14 @@ public class HttpUtil {
                     .evictExpiredConnections()
                     .evictIdleConnections(60, TimeUnit.SECONDS)
                     .setDefaultRequestConfig(requestConfigStream);
-
+    public HttpClientBuilder getHttpClientBuilder() {
+        return httpClientBuilder;
+    }
     public CloseableHttpClient getHttpClient() {
         return httpClientBuilder.build();
     }
 
-    private RequestConfig requestConfig =
+    private final RequestConfig requestConfig =
             RequestConfig.custom()
                     .setConnectTimeout(60 * 1000)
                     .setConnectionRequestTimeout(60 * 1000)

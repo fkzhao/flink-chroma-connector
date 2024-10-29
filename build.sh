@@ -77,7 +77,7 @@ mvn clean package -Dflink.version=${FLINK_VERSION} -Dflink.major.version=${FLINK
 ROOT=$(pwd)
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
-  OUTPUT_DIR=./output
+  OUTPUT_DIR=${ROOT}/output
   [ ! -d "$OUTPUT_DIR" ] && mkdir "$OUTPUT_DIR"
   dist_jar=$(ls "${ROOT}"/target | grep "flink-chroma-" | grep -v "sources.jar" | grep -v "original-")
   rm -rf "${OUTPUT_DIR}"/"${dist_jar}"

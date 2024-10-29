@@ -4,7 +4,9 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.chroma.ChromaClient;
 import org.apache.flink.chroma.conf.ChromaOptions;
+import org.apache.flink.chroma.conf.LimiterOptions;
 import org.apache.flink.chroma.sink.commiter.ChromaAbstractCommittable;
 import org.apache.flink.chroma.sink.commiter.ChromaCommittableSerializer;
 import org.apache.flink.chroma.sink.commiter.ChromaCommitter;
@@ -13,7 +15,6 @@ import org.apache.flink.chroma.sink.writer.ChromaWriter;
 import org.apache.flink.chroma.sink.writer.ChromaWriterState;
 import org.apache.flink.chroma.sink.writer.ChromaWriterStateSerializer;
 import org.apache.flink.chroma.sink.writer.serializer.ChromaRecordSerializer;
-import org.apache.flink.chroma.sink.writer.serializer.SimpleStringSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -29,20 +30,57 @@ public class ChromaSink<IN>
         implements StatefulSink<IN, ChromaWriterState>,
         TwoPhaseCommittingSink<IN, ChromaAbstractCommittable> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ChromaSink.class);
+    private static final Logger logger = LoggerFactory.getLogger(ChromaSink.class);
+    private final transient ChromaClient chromaClient;
     private final ChromaOptions chromaOptions;
+    private final LimiterOptions limiterOptions;
     private final ChromaRecordSerializer<IN> serializer;
     public ChromaSink(
             ChromaOptions chromaOptions,
+            LimiterOptions limiterOptions,
             ChromaRecordSerializer<IN> serializer) {
+        Preconditions.checkNotNull(chromaOptions);
+        Preconditions.checkNotNull(serializer);
+        Preconditions.checkNotNull(chromaOptions.getConnectionUrl());
+        Preconditions.checkNotNull(chromaOptions.getCollection());
         this.chromaOptions = chromaOptions;
+        this.limiterOptions = limiterOptions;
         this.serializer = serializer;
+        chromaClient = ChromaClient.builder()
+                .url(this.chromaOptions.getConnectionUrl())
+                .authType(this.chromaOptions.getAuthType())
+                .authIdentify(this.chromaOptions.getAuthIdentity())
+                .build();
+        checkChromaState();
+        initialize();
+    }
+
+    private void checkChromaState() {
+        //
+        if (!chromaClient.checkTenantAndDatabase(this.chromaOptions.getTenant(), this.chromaOptions.getDatabase())) {
+            throw new RuntimeException("Chroma tenant: " + this.chromaOptions.getTenant() + " database: " + this.chromaOptions.getDatabase() + " is not exist.");
+        }
+
+        //
+        if (!chromaClient.checkCollection(this.chromaOptions.getTenant(), this.chromaOptions.getDatabase(), this.chromaOptions.getCollection())) {
+            if (this.chromaOptions.isAutoCreateCollection()) {
+                if (!chromaClient.createCollection(this.chromaOptions.getTenant(), this.chromaOptions.getDatabase(), this.chromaOptions.getCollection())) {
+                    throw new RuntimeException("Failed to create collection: " + this.chromaOptions.getCollection());
+                }
+            } else {
+                throw new RuntimeException("Chroma collection: " + this.chromaOptions.getCollection() + " is not exist.");
+            }
+        }
+    }
+
+    private void initialize() {
+
     }
 
 
     @Override
     public ChromaAbstractWriter createWriter(InitContext context) throws IOException {
-        return new ChromaWriter<>(context, Collections.<ChromaWriterState>emptyList(), new SimpleStringSerializer());
+        return new ChromaWriter<>(context, Collections.<ChromaWriterState>emptyList(), serializer, chromaClient, limiterOptions);
     }
 
     @Override
@@ -57,7 +95,7 @@ public class ChromaSink<IN>
 
     @Override
     public ChromaAbstractWriter restoreWriter(InitContext context, Collection<ChromaWriterState> recoveredState) throws IOException {
-        return new ChromaWriter<>(context, recoveredState, new SimpleStringSerializer());
+        return new ChromaWriter<>(context, recoveredState, serializer, chromaClient, limiterOptions);
     }
 
     @Override
@@ -77,6 +115,7 @@ public class ChromaSink<IN>
      */
     public static class Builder<IN> {
         private ChromaOptions chromaOptions;
+        private LimiterOptions limiterOptions;
         private ChromaRecordSerializer<IN> serializer;
 
         public Builder<IN> setChromaOptions(ChromaOptions chromaOptions) {
@@ -89,9 +128,15 @@ public class ChromaSink<IN>
             return this;
         }
 
+        public Builder<IN> setLimiterOptions(LimiterOptions limiterOptions) {
+            this.limiterOptions = limiterOptions;
+            return this;
+        }
+
+
         public ChromaSink<IN> build() {
             Preconditions.checkNotNull(chromaOptions);
-            return new ChromaSink<>(chromaOptions, serializer);
+            return new ChromaSink<>(chromaOptions, limiterOptions, serializer);
         }
     }
 
