@@ -17,7 +17,7 @@ public class ChromaRecord implements Serializable {
         this.row = row;
     }
 
-    public String getTableIdentifier() {
+    public String getIdentifier() {
         if (database == null || collection == null) {
             return null;
         }
