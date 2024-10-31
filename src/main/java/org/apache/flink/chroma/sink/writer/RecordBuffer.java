@@ -37,7 +37,7 @@ public class RecordBuffer {
                 "start buffer data, read queue size {}, write queue size {}",
                 readQueue.size(),
                 writeQueue.size());
-        Preconditions.checkState(readQueue.size() == 0);
+        Preconditions.checkState(readQueue.isEmpty());
         Preconditions.checkState(writeQueue.size() == queueSize);
         for (ByteBuffer byteBuffer : writeQueue) {
             Preconditions.checkState(byteBuffer.position() == 0);
@@ -93,7 +93,7 @@ public class RecordBuffer {
         if (currentReadBuffer.limit() == 0) {
             recycleBuffer(currentReadBuffer);
             currentReadBuffer = null;
-            Preconditions.checkState(readQueue.size() == 0);
+            Preconditions.checkState(readQueue.isEmpty());
             return -1;
         }
         int available = currentReadBuffer.remaining();

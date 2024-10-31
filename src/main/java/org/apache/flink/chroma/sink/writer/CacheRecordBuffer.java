@@ -76,7 +76,7 @@ public class CacheRecordBuffer  extends RecordBuffer {
 
     public void recycleCache() {
         // recycle cache buffer
-        Preconditions.checkState(readQueue.size() == 0);
+        Preconditions.checkState(readQueue.isEmpty());
         ByteBuffer buff = bufferCache.poll();
         while (buff != null) {
             buff.clear();
