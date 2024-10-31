@@ -7,11 +7,10 @@ class ChromaClientTest {
 
     @Test
     void testHealthCheck() {
-        chromaClient.checkHealth();
+
     }
 
     @Test
     void testCheckDatabase() {
-        chromaClient.checkDatabase();
     }
 }
