@@ -15,7 +15,6 @@ public class FlinkApp {
         try {
             Configuration conf = new Configuration();
             conf.setString(RestOptions.BIND_PORT, "8081");
-//            conf.setString("execution.savepoint.path", "file:///Users/fakzhao/Desktop/flink/f055bee9cf1a893301ce3f660eb75509/chk-3");
             StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
 
             env.enableCheckpointing(30 * 1000);
@@ -24,7 +23,6 @@ public class FlinkApp {
             env.getCheckpointConfig().setTolerableCheckpointFailureNumber(3);
             env.getCheckpointConfig().enableUnalignedCheckpoints();
             env.setStateBackend(new EmbeddedRocksDBStateBackend());
-            env.getCheckpointConfig().setCheckpointStorage("file:///Users/fakzhao/Desktop/flink");
             env.getConfig().setUseSnapshotCompression(true);
             DataStream<String> sourceDataStream = env.socketTextStream("localhost", 8888);
             ChromaOptions chromaOptions = ChromaOptions.builder()
