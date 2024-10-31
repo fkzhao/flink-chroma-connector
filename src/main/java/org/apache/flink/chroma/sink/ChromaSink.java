@@ -5,6 +5,7 @@ import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.chroma.ChromaClient;
+import org.apache.flink.chroma.ChromaCollection;
 import org.apache.flink.chroma.conf.ChromaOptions;
 import org.apache.flink.chroma.conf.LimiterOptions;
 import org.apache.flink.chroma.sink.commiter.ChromaAbstractCommittable;
@@ -31,7 +32,7 @@ public class ChromaSink<IN>
         TwoPhaseCommittingSink<IN, ChromaAbstractCommittable> {
 
     private static final Logger logger = LoggerFactory.getLogger(ChromaSink.class);
-    private final transient ChromaClient chromaClient;
+    private final ChromaClient chromaClient;
     private final ChromaOptions chromaOptions;
     private final LimiterOptions limiterOptions;
     private final ChromaRecordSerializer<IN> serializer;
@@ -50,28 +51,12 @@ public class ChromaSink<IN>
                 .url(this.chromaOptions.getConnectionUrl())
                 .authType(this.chromaOptions.getAuthType())
                 .authIdentify(this.chromaOptions.getAuthIdentity())
+                .database(this.chromaOptions.getDatabase())
+                .tenant(this.chromaOptions.getTenant())
                 .build();
-        checkChromaState();
         initialize();
     }
 
-    private void checkChromaState() {
-        //
-        if (!chromaClient.checkTenantAndDatabase(this.chromaOptions.getTenant(), this.chromaOptions.getDatabase())) {
-            throw new RuntimeException("Chroma tenant: " + this.chromaOptions.getTenant() + " database: " + this.chromaOptions.getDatabase() + " is not exist.");
-        }
-
-        //
-        if (!chromaClient.checkCollection(this.chromaOptions.getTenant(), this.chromaOptions.getDatabase(), this.chromaOptions.getCollection())) {
-            if (this.chromaOptions.isAutoCreateCollection()) {
-                if (!chromaClient.createCollection(this.chromaOptions.getTenant(), this.chromaOptions.getDatabase(), this.chromaOptions.getCollection())) {
-                    throw new RuntimeException("Failed to create collection: " + this.chromaOptions.getCollection());
-                }
-            } else {
-                throw new RuntimeException("Chroma collection: " + this.chromaOptions.getCollection() + " is not exist.");
-            }
-        }
-    }
 
     private void initialize() {
 
@@ -80,7 +65,9 @@ public class ChromaSink<IN>
 
     @Override
     public ChromaAbstractWriter createWriter(InitContext context) throws IOException {
-        return new ChromaWriter<>(context, Collections.<ChromaWriterState>emptyList(), serializer, chromaClient, limiterOptions);
+        ChromaCollection chromaCollection = chromaClient.getCollection(chromaOptions.getCollection());
+        Preconditions.checkNotNull(chromaCollection);
+        return new ChromaWriter<>(context, Collections.<ChromaWriterState>emptyList(), serializer, chromaCollection, limiterOptions);
     }
 
     @Override
@@ -95,7 +82,9 @@ public class ChromaSink<IN>
 
     @Override
     public ChromaAbstractWriter restoreWriter(InitContext context, Collection<ChromaWriterState> recoveredState) throws IOException {
-        return new ChromaWriter<>(context, recoveredState, serializer, chromaClient, limiterOptions);
+        ChromaCollection chromaCollection = chromaClient.getCollection(chromaOptions.getCollection());
+        Preconditions.checkNotNull(chromaCollection);
+        return new ChromaWriter<>(context, recoveredState, serializer, chromaCollection, limiterOptions);
     }
 
     @Override
